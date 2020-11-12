@@ -3,6 +3,7 @@
 const _ = require('lodash');
 const { ACTIONS } = require('../services/constants');
 const { validateLockInput, validateExtendLockInput } = require('./validation');
+const { findEntityAndCheckPermissions } = require('./ContentManager');
 
 const sanitizeLock = (lock, { withUid = false } = {}) => {
   if (_.isNil(lock)) {
@@ -25,9 +26,8 @@ const getLock = async ctx => {
 
   const { kind } = strapi.getModel(model);
 
-  const contentManagerService = strapi.plugins['content-manager'].services.contentmanager;
   try {
-    await contentManagerService.findEntityAndCheckPermissions(userAbility, ACTIONS.edit, model, id);
+    await findEntityAndCheckPermissions(userAbility, ACTIONS.edit, model, id);
   } catch (e) {
     if (e.message !== 'Not Found' || kind !== 'singleType') {
       throw e;
@@ -60,9 +60,8 @@ const lock = async ctx => {
   const force = _.get(body, 'force', false) === true;
   const { kind } = strapi.getModel(model);
 
-  const contentManagerService = strapi.plugins['content-manager'].services.contentmanager;
   try {
-    await contentManagerService.findEntityAndCheckPermissions(userAbility, ACTIONS.edit, model, id);
+    await findEntityAndCheckPermissions(userAbility, ACTIONS.edit, model, id);
   } catch (e) {
     if (e.message !== 'Not Found' || kind !== 'singleType') {
       throw e;
@@ -97,9 +96,8 @@ const extendLock = async ctx => {
   const metadata = _.get(body, 'metadata', undefined);
   const { kind } = strapi.getModel(model);
 
-  const contentManagerService = strapi.plugins['content-manager'].services.contentmanager;
   try {
-    await contentManagerService.findEntityAndCheckPermissions(userAbility, ACTIONS.edit, model, id);
+    await findEntityAndCheckPermissions(userAbility, ACTIONS.edit, model, id);
   } catch (e) {
     if (e.message !== 'Not Found' || kind !== 'singleType') {
       throw e;
@@ -116,7 +114,7 @@ const extendLock = async ctx => {
 
   return {
     success: lockResult.success,
-    lockInfo: sanitizeLock(lockResult.lock, { withUid: true }),
+    lockInfo: sanitizeLock(lockResult.lock),
   };
 };
 
@@ -135,9 +133,8 @@ const unlock = async ctx => {
 
   const { kind } = strapi.getModel(model);
 
-  const contentManagerService = strapi.plugins['content-manager'].services.contentmanager;
   try {
-    await contentManagerService.findEntityAndCheckPermissions(userAbility, ACTIONS.edit, model, id);
+    await findEntityAndCheckPermissions(userAbility, ACTIONS.edit, model, id);
   } catch (e) {
     if (e.message !== 'Not Found' || kind !== 'singleType') {
       throw e;

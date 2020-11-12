@@ -191,7 +191,7 @@
     },
     {
       "method": "POST",
-      "path": "/collection-type/:model/:id/actions/lock",
+      "path": "/collection-types/:model/:id/actions/lock",
       "handler": "EditingLock.lock",
       "config": {
         "policies": [
@@ -203,7 +203,7 @@
     },
     {
       "method": "POST",
-      "path": "/single-type/:model/actions/lock",
+      "path": "/single-types/:model/actions/lock",
       "handler": "EditingLock.lock",
       "config": {
         "policies": [
@@ -215,7 +215,7 @@
     },
     {
       "method": "POST",
-      "path": "/collection-type/:model/:id/actions/extend-lock",
+      "path": "/collection-types/:model/:id/actions/extend-lock",
       "handler": "EditingLock.extendLock",
       "config": {
         "policies": [
@@ -227,7 +227,7 @@
     },
     {
       "method": "POST",
-      "path": "/single-type/:model/actions/extend-lock",
+      "path": "/single-types/:model/actions/extend-lock",
       "handler": "EditingLock.extendLock",
       "config": {
         "policies": [
@@ -239,7 +239,7 @@
     },
     {
       "method": "POST",
-      "path": "/collection-type/:model/:id/actions/unlock",
+      "path": "/collection-types/:model/:id/actions/unlock",
       "handler": "EditingLock.unlock",
       "config": {
         "policies": [
@@ -251,7 +251,7 @@
     },
     {
       "method": "POST",
-      "path": "/single-type/:model/actions/unlock",
+      "path": "/single-types/:model/actions/unlock",
       "handler": "EditingLock.unlock",
       "config": {
         "policies": [
@@ -263,7 +263,7 @@
     },
     {
       "method": "GET",
-      "path": "/collection-type/:model/:id/actions/lock",
+      "path": "/collection-types/:model/:id/actions/lock",
       "handler": "EditingLock.getLock",
       "config": {
         "policies": [
@@ -275,7 +275,7 @@
     },
     {
       "method": "GET",
-      "path": "/single-type/:model/actions/lock",
+      "path": "/single-types/:model/actions/lock",
       "handler": "EditingLock.getLock",
       "config": {
         "policies": [

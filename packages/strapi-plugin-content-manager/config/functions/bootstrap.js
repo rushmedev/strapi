@@ -3,6 +3,7 @@
 const _ = require('lodash');
 const {
   contentTypes: { hasDraftAndPublish },
+  webhook: webhookUtils,
 } = require('strapi-utils');
 const storeUtils = require('../../services/utils/store');
 const {
@@ -12,6 +13,8 @@ const {
 
 const contentTypeService = require('../../services/ContentTypes');
 const componentService = require('../../services/Components');
+
+const { ENTRY_UPDATE } = webhookUtils.webhookEvents;
 
 const updateContentTypes = async configurations => {
   const updateConfiguration = async uid => {
@@ -168,8 +171,20 @@ const registerPermissions = () => {
   actionProvider.register(actions);
 };
 
+const registerLockHook = () => {
+  const updateLastUpdatedAtHook = async ({ model, entry }) => {
+    await strapi.plugins['content-manager'].services.editinglock.updateLastUpdatedAtMetadata({
+      model,
+      entityId: entry.id,
+    });
+  };
+
+  strapi.eventHub.on(ENTRY_UPDATE, updateLastUpdatedAtHook);
+};
+
 module.exports = async () => {
   await syncContentTypesSchemas();
   await syncComponentsSchemas();
   registerPermissions();
+  registerLockHook();
 };

@@ -15,15 +15,6 @@ describe('Content-Manager', () => {
         },
         eventHub: { emit: jest.fn() },
         getModel: jest.fn(() => fakeModel),
-        plugins: {
-          'content-manager': {
-            services: {
-              editinglock: {
-                updateLastUpdatedAtMetadata: jest.fn(),
-              },
-            },
-          },
-        },
       };
     });
 
@@ -36,9 +27,6 @@ describe('Content-Manager', () => {
       const params = { id: 1 };
       await contentManagerService.publish(params, model);
 
-      expect(
-        strapi.plugins['content-manager'].services.editinglock.updateLastUpdatedAtMetadata
-      ).toHaveBeenCalledWith({ model, entityId: params.id });
       expect(strapi.entityService.update).toBeCalledWith(
         { params, data: { published_at: expect.any(Date) } },
         { model }
@@ -54,15 +42,6 @@ describe('Content-Manager', () => {
         },
         eventHub: { emit: jest.fn() },
         getModel: jest.fn(() => fakeModel),
-        plugins: {
-          'content-manager': {
-            services: {
-              editinglock: {
-                updateLastUpdatedAtMetadata: jest.fn(),
-              },
-            },
-          },
-        },
       };
     });
 
@@ -75,9 +54,6 @@ describe('Content-Manager', () => {
       const params = { id: 1 };
       await contentManagerService.unpublish(params, model);
 
-      expect(
-        strapi.plugins['content-manager'].services.editinglock.updateLastUpdatedAtMetadata
-      ).toHaveBeenCalledWith({ model, entityId: params.id });
       expect(strapi.entityService.update).toHaveBeenCalledWith(
         { params, data: { published_at: null } },
         { model }

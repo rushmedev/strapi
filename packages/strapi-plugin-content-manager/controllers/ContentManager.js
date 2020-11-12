@@ -2,6 +2,7 @@
 
 const _ = require('lodash');
 const { contentTypes: contentTypesUtils } = require('strapi-utils');
+
 const {
   PUBLISHED_AT_ATTRIBUTE,
   CREATED_BY_ATTRIBUTE,
@@ -9,14 +10,55 @@ const {
 } = contentTypesUtils.constants;
 
 const parseMultipartBody = require('../utils/parse-multipart');
+const { ACTIONS } = require('../services/constants');
 const {
   validateGenerateUIDInput,
   validateCheckUIDAvailabilityInput,
   validateUIDField,
 } = require('./validation');
-const { ACTIONS } = require('../services/constants');
+
+const findEntityAndCheckPermissions = async (ability, action, model, id) => {
+  const contentManagerService = strapi.plugins['content-manager'].services.contentmanager;
+  const entity = await contentManagerService.fetch(model, id);
+
+  if (_.isNil(entity)) {
+    throw strapi.errors.notFound();
+  }
+
+  const roles = _.has(entity, 'created_by.id')
+    ? await strapi.query('role', 'admin').find({ 'users.id': entity[CREATED_BY_ATTRIBUTE].id }, [])
+    : [];
+  const entityWithRoles = _.set(_.cloneDeep(entity), `${CREATED_BY_ATTRIBUTE}.roles`, roles);
+
+  const pm = strapi.admin.services.permission.createPermissionsManager(ability, action, model);
+
+  if (pm.ability.cannot(pm.action, pm.toSubject(entityWithRoles))) {
+    throw strapi.errors.forbidden();
+  }
+
+  return { pm, entity: entityWithRoles };
+};
+
+const validateAndExtendLock = async ({ model, id, lockUID }) => {
+  if (!_.isString(lockUID) || _.isEmpty(lockUID)) {
+    throw strapi.errors.badRequest('uid query param is invalid');
+  }
+
+  const editingLockService = strapi.plugins['content-manager'].services.editinglock;
+  const lockResult = await editingLockService.extendLock({
+    model,
+    entityId: id,
+    uid: lockUID,
+  });
+
+  if (!lockResult.success) {
+    throw strapi.errors.badRequest('Someone took over the edition of this entry');
+  }
+};
 
 module.exports = {
+  findEntityAndCheckPermissions,
+
   async generateUID(ctx) {
     const { contentTypeUID, field, data } = await validateGenerateUIDInput(ctx.request.body);
 
@@ -109,9 +151,8 @@ module.exports = {
       state: { userAbility },
       params: { model, id },
     } = ctx;
-    const contentManagerService = strapi.plugins['content-manager'].services.contentmanager;
 
-    const { pm, entity } = await contentManagerService.findEntityAndCheckPermissions(
+    const { pm, entity } = await findEntityAndCheckPermissions(
       userAbility,
       ACTIONS.read,
       model,
@@ -214,12 +255,13 @@ module.exports = {
       state: { userAbility, user },
       params: { id, model },
       request: { body },
+      query: { uid },
     } = ctx;
 
     const contentManagerService = strapi.plugins['content-manager'].services.contentmanager;
     const modelDef = strapi.getModel(model);
 
-    const { pm, entity } = await contentManagerService.findEntityAndCheckPermissions(
+    const { pm, entity } = await findEntityAndCheckPermissions(
       userAbility,
       ACTIONS.edit,
       model,
@@ -234,6 +276,8 @@ module.exports = {
 
     const isDraft = contentTypesUtils.isDraft(entity, modelDef);
     await strapi.entityValidator.validateEntityUpdate(modelDef, writableData, { isDraft });
+
+    await validateAndExtendLock({ model, id, lockUID: uid });
 
     try {
       const result = await contentManagerService.edit(
@@ -267,15 +311,13 @@ module.exports = {
     const {
       state: { userAbility },
       params: { id, model },
+      query: { uid },
     } = ctx;
     const contentManagerService = strapi.plugins['content-manager'].services.contentmanager;
 
-    const { pm } = await contentManagerService.findEntityAndCheckPermissions(
-      userAbility,
-      ACTIONS.delete,
-      model,
-      id
-    );
+    const { pm } = await findEntityAndCheckPermissions(userAbility, ACTIONS.delete, model, id);
+
+    await validateAndExtendLock({ model, id, lockUID: uid });
 
     const result = await contentManagerService.delete(model, { id });
 
@@ -287,7 +329,7 @@ module.exports = {
    */
   async deleteMany(ctx) {
     const {
-      state: { userAbility },
+      state: { userAbility, user },
       params: { model },
       request,
     } = ctx;
@@ -298,11 +340,16 @@ module.exports = {
       model
     );
 
-    const results = await contentManagerService.deleteMany(
-      model,
-      Object.values(request.query),
-      pm.query
+    const idsToDelete = Object.values(request.query);
+    const editingLockService = strapi.plugins['content-manager'].services.editinglock;
+
+    await Promise.all(
+      idsToDelete.map(entityId =>
+        editingLockService.setLock({ model, entityId, user }, { force: true })
+      )
     );
+
+    const results = await contentManagerService.deleteMany(model, idsToDelete, pm.query);
 
     ctx.body = results.map(result => pm.sanitize(result, { action: ACTIONS.read }));
   },
@@ -311,10 +358,11 @@ module.exports = {
     const {
       state: { userAbility },
       params: { model, id },
+      query: { uid },
     } = ctx;
 
     const contentManagerService = strapi.plugins['content-manager'].services.contentmanager;
-    const { entity, pm } = await contentManagerService.findEntityAndCheckPermissions(
+    const { entity, pm } = await findEntityAndCheckPermissions(
       userAbility,
       ACTIONS.publish,
       model,
@@ -322,6 +370,8 @@ module.exports = {
     );
 
     await strapi.entityValidator.validateEntityCreation(strapi.getModel(model), entity);
+
+    await validateAndExtendLock({ model, id, lockUID: uid });
 
     if (entity[PUBLISHED_AT_ATTRIBUTE]) {
       return ctx.badRequest('Already published');
@@ -336,15 +386,18 @@ module.exports = {
     const {
       state: { userAbility },
       params: { model, id },
+      query: { uid },
     } = ctx;
 
     const contentManagerService = strapi.plugins['content-manager'].services.contentmanager;
-    const { entity, pm } = await contentManagerService.findEntityAndCheckPermissions(
+    const { entity, pm } = await findEntityAndCheckPermissions(
       userAbility,
       ACTIONS.publish,
       model,
       id
     );
+
+    await validateAndExtendLock({ model, id, lockUID: uid });
 
     if (!entity[PUBLISHED_AT_ATTRIBUTE]) {
       return ctx.badRequest('Already a draft');

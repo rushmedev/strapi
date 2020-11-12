@@ -64,8 +64,8 @@ describe('Editing Lock', () => {
 
       // define baseUrl
       baseUrl = isSingleType
-        ? `/content-manager/single-type/application::${modelName}.${modelName}/actions`
-        : `/content-manager/collection-type/application::${modelName}.${modelName}/${data.products[0].id}/actions`;
+        ? `/content-manager/single-types/application::${modelName}.${modelName}/actions`
+        : `/content-manager/collection-types/application::${modelName}.${modelName}/${data.products[0].id}/actions`;
     }, 60000);
 
     afterAll(async () => {

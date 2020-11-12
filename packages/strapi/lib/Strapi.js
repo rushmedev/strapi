@@ -1,7 +1,7 @@
 'use strict';
 
 // required first because it loads env files.
-const loadConfiguration = require('./core/app-configuration');
+const loadConfiguration = require('./core/app-configuration'); // eslint-disable-line import/order
 
 const http = require('http');
 const path = require('path');
